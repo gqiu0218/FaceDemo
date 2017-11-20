@@ -67,12 +67,6 @@ public class OpenglActivity extends Activity
         setContentView(R.layout.activity_opengl);
 
         init();
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                startRecorder();
-            }
-        }, 2000);
     }
 
     private void init() {

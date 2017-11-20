@@ -2,49 +2,73 @@ package face.gqiu.com.faceplusdemo;
 
 import android.graphics.BitmapFactory;
 import android.hardware.Camera;
+import android.opengl.GLSurfaceView;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.util.DisplayMetrics;
 import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
+
+import com.facepp.library.util.ConUtil;
+import com.facepp.library.util.DialogUtil;
+import com.facepp.library.util.ICamera;
+import com.facepp.library.util.OpenGLDrawRect;
+import com.facepp.library.util.Screen;
+import com.facepp.library.util.SensorEventUtil;
+import com.megvii.facepp.sdk.Facepp;
 
 import net.bither.util.NativeUtil;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.List;
+import java.util.HashMap;
+
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
 
 import face.gqiu.com.faceplusdemo.utils.FileUtil;
 
-public class MainActivity extends AppCompatActivity implements SurfaceHolder.Callback, View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements SurfaceHolder.Callback, View.OnClickListener, GLSurfaceView.Renderer {
     private Camera mCamera;
-    private SurfaceView mSurfaceView;
-
+    private GLSurfaceView mGlSurfaceView;
+    private Facepp facepp;
+    private SensorEventUtil sensorUtil;
+    private ICamera mICamera;
+    private DialogUtil mDialogUtil;
+    private HashMap<String, Integer> resolutionMap;
+    private int mAngle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         requestWindowFeature(Window.FEATURE_NO_TITLE);//去掉标题栏
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         super.onCreate(savedInstanceState);
+        Screen.initialize(this);
         setContentView(R.layout.activity_main);
         findViewById(R.id.takephoto_btn).setOnClickListener(this);
-        mSurfaceView = (SurfaceView) findViewById(R.id.surfaceView);
+        mGlSurfaceView = (GLSurfaceView) findViewById(R.id.surfaceView);
         init();
     }
 
     private void init() {
-        initCamera();
-        SurfaceHolder holder = mSurfaceView.getHolder();
-        int[] screenWH = getScreenAndHeight();
-        holder.setFixedSize(screenWH[0], screenWH[1]);
-        holder.setKeepScreenOn(true);// 屏幕常亮
-        holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-        holder.addCallback(this);
+        facepp = new Facepp();
+        sensorUtil = new SensorEventUtil(this);
+        mGlSurfaceView.setEGLContextClientVersion(2); // 创建一个OpenGL ES 2.0
+        mGlSurfaceView.setRenderer(this);// 设置渲染器进入gl
+        mGlSurfaceView.setRenderMode(mGlSurfaceView.RENDERMODE_WHEN_DIRTY);// 设置渲染器模式
+        mGlSurfaceView.setOnClickListener(this);
+        mICamera = new ICamera();
+        mDialogUtil = new DialogUtil(this);
+
+        resolutionMap = new HashMap<>();
+        resolutionMap.put("width", 1080);
+        resolutionMap.put("height", 1920);
     }
 
 
@@ -84,62 +108,86 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     @Override
     protected void onResume() {
         super.onResume();
-        if (mCamera == null) {
-            initCamera();
-            SurfaceHolder holder = mSurfaceView.getHolder();
-            holder.addCallback(this);
+        ConUtil.acquireWakeLock(this);
+        mCamera = mICamera.openCamera(false, this, resolutionMap);
+        if (mCamera != null) {
+            mAngle = 360 - mICamera.Angle;
+            RelativeLayout.LayoutParams layout_params = mICamera.getLayoutParam();
+            mGlSurfaceView.setLayoutParams(layout_params);
+
+            int width = mICamera.cameraWidth;
+            int height = mICamera.cameraHeight;
+
+            int left = 0;
+            int top = 0;
+            int right = width;
+            int bottom = height;
+
+            String errorCode = facepp.init(this, ConUtil.getFileContent(this, com.facepp.library.R.raw.megviifacepp_0_4_7_model));
+            Facepp.FaceppConfig faceppConfig = facepp.getFaceppConfig();
+            faceppConfig.interval = 100;
+            faceppConfig.minFaceSize = 200;
+            faceppConfig.roi_left = left;
+            faceppConfig.roi_top = top;
+            faceppConfig.roi_right = right;
+            faceppConfig.one_face_tracking = 1;
+            faceppConfig.detectionMode = Facepp.FaceppConfig.DETECTION_MODE_TRACKING;
+            facepp.setFaceppConfig(faceppConfig);
+        } else {
+            mDialogUtil.showDialog(getResources().getString(com.facepp.library.R.string.camera_error));
         }
+    }
+
+
+    private void setConfig(int rotation) {
+        Facepp.FaceppConfig faceppConfig = facepp.getFaceppConfig();
+        if (faceppConfig.rotation != rotation) {
+            faceppConfig.rotation = rotation;
+            facepp.setFaceppConfig(faceppConfig);
+        }
+    }
+
+    /**
+     * 画绿色框
+     */
+    private void drawShowRect() {
+        mPointsMatrix.vertexBuffers = OpenGLDrawRect.drawCenterShowRect(isBackCamera, mICamera.cameraWidth,
+                mICamera.cameraHeight, roi_ratio);
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        clearCamera();
+    public void onSurfaceCreated(GL10 gl, EGLConfig config) {
 
     }
 
+    @Override
+    public void onSurfaceChanged(GL10 gl, int width, int height) {
 
-    /**
-     * 释放相机的内存
-     */
-    private void clearCamera() {
-        if (mCamera != null) {
-            // 停止预览
-            mCamera.stopPreview();
-            mCamera.setPreviewCallback(null);
-            // 释放相机资源
-            mCamera.release();
-            mCamera = null;
-        }
+    }
+
+    @Override
+    public void onDrawFrame(GL10 gl) {
+
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        showViews(holder);
+
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        showViews(holder);
+
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        clearCamera();
-    }
 
-    private int[] getScreenAndHeight() {
-        WindowManager manager = this.getWindowManager();
-        DisplayMetrics outMetrics = new DisplayMetrics();
-        manager.getDefaultDisplay().getMetrics(outMetrics);
-        int width = outMetrics.widthPixels;
-        int height = outMetrics.heightPixels;
-        return new int[]{width, height};
     }
 
     @Override
     public void onClick(View v) {
-        mCamera.takePicture(null, null, new PictureCallback());
+
     }
 
     private class PictureCallback implements Camera.PictureCallback {
@@ -172,5 +220,4 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
         return path;
     }
-
 }
