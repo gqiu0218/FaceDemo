@@ -37,8 +37,7 @@ import java.util.HashMap;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-public class OpenglActivity extends Activity
-        implements PreviewCallback, Renderer, SurfaceTexture.OnFrameAvailableListener {
+public class OpenglActivity extends Activity implements PreviewCallback, Renderer, SurfaceTexture.OnFrameAvailableListener {
 
     private boolean isStartRecorder, is3DPose, isDebug, isROIDetect, is106Points, isBackCamera, isFaceProperty,
             isOneFaceTrackig;

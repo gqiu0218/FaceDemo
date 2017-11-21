@@ -11,11 +11,17 @@
         android:label="@string/app_name">
         <activity
             android:name="com.facepp.library.FaceppActionActivity"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait" />
 
         <activity
             android:name="com.facepp.library.OpenglActivity"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".EmptyActivity"
+            android:screenOrientation="portrait" />
     </application>
 
 

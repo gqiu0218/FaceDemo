@@ -1,4 +1,4 @@
-package face.gqiu.com.faceplusdemo;
+package com.facepp.library;
 
 import android.app.Activity;
 import android.graphics.SurfaceTexture;
@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
+import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 
 import com.facepp.library.util.CameraMatrix;
@@ -43,6 +44,7 @@ public class MainActivity extends Activity implements PreviewCallback, Renderer,
     private HashMap<String, Integer> resolutionMap;
     private SensorEventUtil sensorUtil;
     private int mAngle;
+    private boolean isTiming = true; // 是否是定时去刷新界面;
 
     boolean isSuccess = false;
     float confidence;
@@ -87,14 +89,13 @@ public class MainActivity extends Activity implements PreviewCallback, Renderer,
         mCamera = mICamera.openCamera(false, this, resolutionMap);
         if (mCamera != null) {
             mAngle = 360 - mICamera.Angle;
-            RelativeLayout.LayoutParams layout_params = mICamera.getLayoutParam();
-            mGlSurfaceView.setLayoutParams(layout_params);
-
             int width = mICamera.cameraWidth;
             int height = mICamera.cameraHeight;
 
             int left = 0;
             int top = 0;
+
+            String errorCode = facepp.init(this, ConUtil.getFileContent(this, R.raw.megviifacepp_0_4_7_model));
             Facepp.FaceppConfig faceppConfig = facepp.getFaceppConfig();
             faceppConfig.interval = 25;
             faceppConfig.minFaceSize = 200;
@@ -154,6 +155,8 @@ public class MainActivity extends Activity implements PreviewCallback, Renderer,
                     if (faces.length >= 0) {
                         for (int c = 0; c < faces.length; c++) {
                             facepp.getLandmark(faces[c], Facepp.FPP_GET_LANDMARK106);
+                            Facepp.Face face = faces[c];
+
                             pitch = faces[c].pitch;
                             yaw = faces[c].yaw;
                             roll = faces[c].roll;
@@ -192,6 +195,9 @@ public class MainActivity extends Activity implements PreviewCallback, Renderer,
                     }
                 }
                 isSuccess = false;
+                if (!isTiming) {
+                    timeHandle.sendEmptyMessage(1);
+                }
             }
         });
     }
@@ -237,6 +243,9 @@ public class MainActivity extends Activity implements PreviewCallback, Renderer,
         mPointsMatrix = new PointsMatrix();
         mICamera.startPreview(mSurface);// 设置预览容器
         mICamera.actionDetect(this);
+        if (isTiming) {
+            timeHandle.sendEmptyMessageDelayed(0, 30);
+        }
     }
 
     @Override

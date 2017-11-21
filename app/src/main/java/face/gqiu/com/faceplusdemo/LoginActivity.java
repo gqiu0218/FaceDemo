@@ -9,7 +9,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.facepp.library.EmptyActivity;
 import com.facepp.library.FaceppActionActivity;
+import com.facepp.library.OpenglActivity;
 import com.facepp.library.util.ConUtil;
 import com.facepp.library.util.Util;
 import com.megvii.facepp.sdk.Facepp;
@@ -88,8 +90,7 @@ public class LoginActivity extends Activity implements View.OnClickListener {
                 @Override
                 public void run() {
                     Intent intent = new Intent();
-                    intent.setClass(LoginActivity.this, FaceppActionActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);//If set, and the activity being launched is already running in the current task, then instead of launching a new instance of that activity,all of the other activities on top of it will be closed and this Intent will be delivered to the (now on top) old activity as a new Intent.
+                    intent.setClass(LoginActivity.this, EmptyActivity.class);
                     startActivity(intent);
                     finish();
                 }
